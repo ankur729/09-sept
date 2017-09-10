@@ -1,0 +1,30 @@
+download BUNDLE OF THIS
+
+<script src="public/js/angular-filesaver.min.js"></script>
+
+
+   $scope.excelexport=function(){
+
+        console.log('tt');
+         $http({
+            method: "GET",
+            url: "admin/excel-export",
+            headers:{'Accept': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+            responseType: 'arraybuffer'
+        }).then(function mySucces(response) {
+
+
+            $scope.user_view_full = response.data[0];
+            //     $scope.user_orders_view=response.data[0].orders;
+            //  for(var i=0;i<$scope.user_view_full)
+
+            console.log(response.data);
+        var blob = new Blob([response.data], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+            FileSaver.saveAs(blob, "excel.xlsx");
+            //  $scope.user_details="";
+
+        }, function myError(response) {
+
+        });
+
+    }
