@@ -1,0 +1,359 @@
+router
+
+    .get('/excel-export', function (req, res, next) {
+
+        db.order_infos.aggregate(
+
+            {
+                "$match": { order_status: 'delivered' }
+            },
+            {
+                $lookup: {
+                    from: 'cook_infos',
+                    localField: 'cook_id',
+                    foreignField: '_id',
+                    as: 'cook_data'
+
+                }
+
+            },
+            {
+                $lookup: {
+                    from: 'pay_commission_info',
+                    localField: 'order_id',
+                    foreignField: 'orderid',
+                    as: 'comission_data'
+
+                }
+
+            },
+            { $project: { order_id: 1, date: 1, time: 1, 'items': 1, 'cook_data.cook_commission': 1, 'cook_data.is_gstin': 1, 'cook_data.cook_name': 1, 'cook_data._id:': 1, 'comission_data': 1 } }
+
+        ).sort({ 'time': -1 }, function (err, data) {
+
+
+            for (var i = 0; i < data.length; i++) {
+
+
+                if (data[i].comission_data.length < 1) {
+                    data[i].paid_status = 'unpaid'
+                }
+                if (data[i].comission_data.length > 0) {
+                    data[i].paid_status = 'paid'
+                }
+            }
+
+
+            var income_list_view = data;
+
+            var food_tot_val = 0;
+            var payble_amt = 0;
+            var discount_amt = 0;
+            var del_charge = 0;
+            var temp_tot_val = 0;
+
+            var tt = 0;
+            var is_gst_reg = false;
+            var ts = 0;
+            for (var i = 0; i < data.length; i++) {
+
+                discount_amt = 0;
+                food_tot_val = 0;
+                del_charge = 0;
+                temp_tot_val = 0;
+                is_gst_reg = false;
+                for (var j = 0; j < income_list_view[i].items.length; j++) {
+
+                    if (income_list_view[i].items[j].discount_amt != 0) {
+
+                        discount_amt = discount_amt + income_list_view[i].items[j].discount_amt;
+                    }
+
+
+                    food_tot_val = food_tot_val + (income_list_view[i].items[j].food_total_price * income_list_view[i].items[j].food_qty);
+                    //  console.log(food_tot_val);
+                }
+
+                if (income_list_view[i].cook_data[0].is_gstin == "true") {
+                    is_gst_reg = true;
+                }
+
+                del_charge = income_list_view[i].items[0].delivery_charge;
+
+                income_list_view[i].food_total_price = food_tot_val;
+
+                income_list_view[i].income = Math.round((food_tot_val * parseInt(income_list_view[i].cook_data[0].cook_commission)) / 100);
+
+                if (discount_amt > 0) {
+
+                    income_list_view[i].income = income_list_view[i].income - discount_amt;
+
+                }
+
+                income_list_view[i].payble_amt = food_tot_val - Math.round((food_tot_val * parseInt(income_list_view[i].cook_data[0].cook_commission)) / 100);
+
+                income_list_view[i].eatoeato_gst = (income_list_view[i].income + del_charge) * 18 / 100;
+
+                if (is_gst_reg == false) {
+
+                    income_list_view[i].tax_rate = 0.0;
+
+                    ts = income_list_view[i].food_total_price * .18;
+                    income_list_view[i].eatoeato_gst = income_list_view[i].eatoeato_gst + ts;
+                    income_list_view[i].eatoeato_gst = income_list_view[i].eatoeato_gst.toFixed(2);
+
+                }
+                else if (is_gst_reg == true) {
+
+                    income_list_view[i].tax_rate = food_tot_val * 18 / 100;
+                }
+
+
+                console.log('commission');
+                var ss;
+                console.log(parseInt(income_list_view[i].cook_data[0].cook_commission));
+
+                //temp_tot_val + (temp_tot_val * 18 / 100);
+                income_list_view[i].discount_amt = discount_amt;
+                income_list_view[i].eatoeato_total_val = income_list_view[i].eatoeato_total_val - income_list_view[i].discount_amt;
+                income_list_view[i].eatoeato_total_val = income_list_view[i].eatoeato_total_val.toFixed(2);
+                income_list_view[i].cook_name = income_list_view[i].cook_data[0].cook_name;
+                income_list_view[i].pay_mode = income_list_view[i].items[0].pay_mode;
+                income_list_view[i].delivery_charge = income_list_view[i].items[0].delivery_charge;
+                income_list_view[i].delivery_time = income_list_view[i].items[0].delivery_time;
+                ss = (income_list_view[i].items[0].food_total_price * income_list_view[i].cook_data[0].cook_commission) / 100;
+                income_list_view[i].income = ss - discount_amt;
+                console.log('ssssssssss');
+                console.log(ss);
+                income_list_view[i].food_total_price = income_list_view[i].items[0].food_total_price - ss;
+
+                if (income_list_view[i].tax_rate != 0) {
+                    income_list_view[i].tax_rate = income_list_view[i].food_total_price * 18 / 100;
+                }
+
+
+
+                temp_tot_val = food_tot_val + del_charge;
+                if (is_gst_reg == false) {
+                    income_list_view[i].eatoeato_gst = (income_list_view[i].food_total_price + income_list_view[i].income + del_charge) * .18;
+                    income_list_view[i].eatoeato_gst = income_list_view[i].eatoeato_gst.toFixed(2);
+                }
+                else if (is_gst_reg == true) {
+                    income_list_view[i].eatoeato_gst = (income_list_view[i].income + del_charge) * .18;
+                    income_list_view[i].eatoeato_gst = income_list_view[i].eatoeato_gst.toFixed(2);
+                }
+                console.log('TEMP TOTAL VAL');
+                console.log(temp_tot_val);
+                income_list_view[i].eatoeato_total_val = income_list_view[i].income + income_list_view[i].delivery_charge + parseFloat(income_list_view[i].eatoeato_gst) + parseFloat(income_list_view[i].food_total_price) + income_list_view[i].tax_rate;
+                income_list_view[i].eatoeato_total_val = income_list_view[i].eatoeato_total_val.toFixed(2);
+                //$scope.income_list_view[i].food_total_price = $scope.income_list_view[i].eatoeato_total_val - $scope.income_list_view[i].income - $scope.income_list_view[i].delivery_charge - $scope.income_list_view[i].eatoeato_gst;
+                //$scope.income_list_view[i].food_total_price = $scope.income_list_view[i].food_total_price.toFixed(2);
+            }
+            // //  console.log('THIS IS INCOME LIST');
+            // $scope.income_list_view = response.data;
+            // var rem_amt = 0;
+            // for (var i = 0; i < $scope.income_list_view.length; i++) {
+
+            //     rem_amt = $scope.income_list_view[i].total_amount_payble - $scope.income_list_view[i].total_paid;
+            //     $scope.income_list_view[i].remaining_amt = rem_amt;
+
+            // }
+
+            console.log('mODIFIED');
+            console.log(income_list_view);
+
+            const styles = {
+                headerDark: {
+                    fill: {
+                        fgColor: {
+                            rgb: 'FF000000'
+                        }
+                    },
+                    font: {
+                        color: {
+                            rgb: 'FFFFFFFF'
+                        },
+                        sz: 14,
+                        bold: true,
+                        underline: true
+                    }
+                },
+                cellPink: {
+                    fill: {
+                        fgColor: {
+                            rgb: 'FFFFCCFF'
+                        }
+                    }
+                },
+                cellGreen: {
+                    fill: {
+                        fgColor: {
+                            rgb: 'FF00FF00'
+                        }
+                    }
+                }
+            };
+
+
+            const heading = [
+                // [{ value: 'a1', style: styles.headerDark }, { value: 'b1', style: styles.headerDark }, { value: 'c1', style: styles.headerDark }],
+                // ['a2', 'b2', 'c2'] // <-- It can be only values
+            ];
+
+
+            //Here you specify the export structure
+            const specification = {
+             
+                orderid: {
+                    displayName: 'Order Id',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                 cookname: {
+                    displayName: 'Cook Name',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                 date: {
+                    displayName: 'Date',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                time:{
+
+                    displayName: 'Time',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                discountamt:{
+
+                    displayName: 'Discount Amt.',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                paymode:{
+
+                    displayName: 'PayMent Mode',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                totalval:{
+
+                    displayName: 'Total Value',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                 eatoeatoincome:{
+
+                    displayName: 'EatoEato Income',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                 eatoeatodelcharge:{
+
+                    displayName: 'EatoEato Delivery Charge',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                 eatoeatogst:{
+
+                    displayName: 'EatoEato GST',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                 cookfoodval:{
+
+                    displayName: 'Cook Food Value',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                },
+                 paystatus:{
+
+                    displayName: 'Payment Status',
+                    headerStyle: styles.headerDark,
+                    cellStyle: styles.cellPink, // <- Cell style
+                    width: 220 // <- width in pixels
+                }
+            }
+
+             const dataset = [
+                
+               
+            ]
+
+            var temp_obj={};
+
+            for(var  i=0;i<income_list_view.length;i++){
+                temp_obj={};
+                temp_obj.orderid=income_list_view[i].order_id;
+                temp_obj.cookname=income_list_view[i].cook_data[0].cook_name;
+                temp_obj.date=income_list_view[i].date;
+                temp_obj.time=moment.unix(income_list_view[i].time).format("HH:mm a");
+                temp_obj.discountamt=income_list_view[i].discount_amt;
+                temp_obj.paymode=income_list_view[i].pay_mode;
+                temp_obj.totalval=income_list_view[i].eatoeato_total_val;
+                temp_obj.eatoeatoincome=income_list_view[i].income;
+                temp_obj.eatoeatodelcharge=income_list_view[i].delivery_charge;
+                temp_obj.eatoeatogst=income_list_view[i].eatoeato_gst;
+                temp_obj.cookfoodval=income_list_view[i].food_total_price;
+        
+                temp_obj.paystatus=income_list_view[i].paid_status;
+
+                temp_obj=dataset.push(temp_obj);
+            }
+
+            // The data set should have the following shape (Array of Objects)
+            // The order of the keys is irrelevant, it is also irrelevant if the
+            // dataset contains more fields as the report is build based on the
+            // specification provided above. But you should have all the fields
+            // that are listed in the report specification
+           
+
+            // Define an array of merges. 1-1 = A:1
+            // The merges are independent of the data.
+            // A merge will overwrite all data _not_ in the top-left cell.
+            const merges = [
+                //   { start: { row: 1, column: 1 }, end: { row: 1, column: 10 } },
+                //   { start: { row: 2, column: 1 }, end: { row: 2, column: 5 } },
+                { start: { row: 2, column: 6 }, end: { row: 2, column: 10 } }
+            ]
+
+            // Create the excel report.
+            // This function will return Buffer
+            const report = excel.buildExport(
+                [ // <- Notice that this is an array. Pass multiple sheets to create multi sheet report
+                    {
+                        name: 'Report', // <- Specify sheet name (optional)
+                        heading: heading, // <- Raw heading array (optional)
+                        // <- Merge cell ranges
+                        specification: specification, // <- Report specification
+                        data: dataset // <-- Report data
+                    }
+                ]
+            );
+
+            // You can then return this straight
+            res.attachment('report.xlsx'); // This is sails.js specific (in general you need to set headers)
+            return res.send(report);
+
+
+
+
+            res.send(data);
+        }
+
+            );
+
+
+    })
