@@ -1,0 +1,118 @@
+    $scope.add_user_details_checkout = function (user_details) {
+
+
+        var cookname = $('#register_input').val();
+        var cookNameRegex = /^[A-Za-z]+$/;
+        var contactNo = $('#mobile_no').val();
+        var ContactNoRegex = /^((\+[1-9]{1,4}[ \-]*)|(\([0-9]{2,3}\)[ \-]*)|([0-9]{2,4})[ \-]*)*?[0-9]{3,4}?[ \-]*[0-9]{3,4}?$/;
+        var passVal = $('#pass').val();
+        var PassRegex = /^(?=.*\d)[a-zA-Z]{4,}$/;
+
+        if ($('#register_input').val() == false) {
+
+            swal("Error", "Name Can't Be Empty", "error");
+        }
+        else if ($('#register_input').val().length < 2) {
+
+            swal("Error", "Name is Too Short.", "error");
+        }
+  
+        else if ($('#mobile_no').val() == false) {
+
+            swal("Error", "Mobile No. Can't Be Empty", "error");
+        }
+        else if (!ContactNoRegex.test(contactNo)) {
+
+            swal("Error", "Contact No. Should Be In Valid Format", "error");
+        }
+        else if ($('#pass_s').val() == false) {
+
+            swal("Error", "Password Can't be Empty", "error");
+        }
+        else if ($('#pass_s').val().length < 4) {
+
+            swal("Error", "Password is Too Short & Weak.", "error");
+        }
+
+        else {
+
+
+            console.log(user_details);
+
+            console.log($('#mobile_no').val());
+            if ($('#mobile_no').val().length == 10) {
+
+                $scope.u = {};
+                $scope.u.user_contact_no = user_details.user_contact_no;
+                $http({
+                    method: "POST",
+                    url: 'user/user-contact-validate',
+                    data: $scope.u
+
+                }).then(function mySucces(response) {
+
+
+                    console.log(response);
+
+                    if (response.data.status == 'Already Registered') {
+
+
+                    }
+                    if (response.data.status == 'Not Registered') {
+
+                        $localStorage.user_details = user_details;
+                        $localStorage.user_contact_no = parseInt(user_details.user_contact_no);
+
+                        $(".otp-popup").show();
+
+                        var num = Math.floor(Math.random() * 900000) + 100000;
+
+                        $localStorage.otp_val = num;
+                        console.log(num);
+                        var to_no = parseInt(user_details.user_contact_no);
+                        var message = "Your EatoEato OTP Verification Code is " + num;
+                        $scope.u = {};
+                        $scope.u = "http://smsgate.idigitie.com/http-api.php?username=eatoeato&password=idid@1234&senderid=EATOET&route=1&number=" + to_no + "&message=" + message;
+                        ;
+                        $http({
+                            method: "GET",
+                            url: $scope.u
+
+                        }).then(function mySucces(response) {
+
+                            console.log(response);
+
+                        }, function myError(response) {
+
+
+                            $scope.resend_otp = true;
+                            $timeout(function () {
+
+                                $scope.resend_otp = false;
+
+                            }, 5000);
+                        });
+                    }
+
+
+
+
+                }, function myError(response) {
+
+
+                });
+
+            }
+
+            else if ($('#mobile_no').val().length == 0) {
+
+
+                swal("Error", "Contact Number Couldn't be Blank", "error");
+            }
+            else {
+                swal("Error", "Entered Value is not a Contact Number", "error");
+            }
+
+        }
+
+    }
