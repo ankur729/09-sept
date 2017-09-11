@@ -1,0 +1,26 @@
+  // SAVING NOTIFICATION DATA
+
+                            db.notification_infos.save({
+
+                                notificationid: config.notificationObj.notification_id_user_order_confirmed,
+                                user_cook_id: req.body.userid,
+                                title: config.notificationTitleContent.notification_title_for_user_order_confirmed,
+                                message: config.notificationMessageContent.notification_message_for_user_order_confirmed,
+                                seenstatus: '0',
+                                date:moment(new Date()).format("DD/MM/YYYY"),
+                                datetime: Math.round(moment().toDate().getTime() / 1000),
+
+                            }, function (err, user) {
+
+                                if (err) {
+                                    res.status(400);
+                                    res.send('error');
+                                    throw err;
+
+                                }
+
+                                console.log('NOTIFICATION SAVED');
+                                // res.status(200).send(data);
+                            });
+
+                        }
