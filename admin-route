@@ -1,0 +1,165 @@
+// NOTIFICATION CODE
+function sendMessageToUser(deviceId, message, title, notificationid, data2) {
+    request({
+        url: 'https://fcm.googleapis.com/fcm/send',
+        method: 'POST',
+        headers: {
+            'Content-Type': ' application/json',
+            'Authorization': 'key=AAAAAksKwrc:APA91bGoQowTj2lnj-iODDSMQ2OUBja6QKfW8MwsyDtIjD4F54myel8avsaqubdkJqOABnqWl2ojh96TmQaIWuEQWKyq0iAVRl7B2oUpG8yeapZwJpyuGO746Ups2RlTj0PfG6A7Q8mS'
+        },
+        body: JSON.stringify(
+            {
+                "data": {
+                    "message": message,
+                    "title": title,
+                    "notificationid": notificationid,
+                    "data": data2
+                },
+                "to": deviceId
+            }
+        )
+    }, function (error, response, body) {
+        if (error) {
+            console.error(error, response, body);
+        }
+        else if (response.statusCode >= 400) {
+            console.error('HTTP Error: ' + response.statusCode + ' - ' + response.statusMessage + '\n' + body);
+        }
+        else {
+            console.log('Done NOTIFICATION!')
+        }
+    });
+}
+
+router
+
+    .post('/insert-token', function (req, res, next) {
+
+        console.log('NOTIFICATION CHECK');
+        console.log(req.body);
+        var usertype = req.body.user_type;
+
+        // 1 for user
+        // 2 for cook
+
+        if (usertype == '1') {
+
+            db.user_infos.findAndModify(
+                {
+
+                    query: {
+                        '_id': mongojs.ObjectId(req.body._id)
+                    },
+                    update: {
+                        $set: {
+                            token: req.body.token
+                        }
+                    },
+                    new: true
+                }, function (err, doc) {
+                    if (err) {
+                        console.log("Something wrong when updating data!");
+                    } else {
+                        if (doc != null) {
+                            console.log("Token updated");
+                            console.log(doc);
+                            res.send("true");
+                        }
+                    }
+                });
+        }
+        else if (usertype == '2') {
+
+            db.user_infos.findAndModify(
+                {
+
+                    query: {
+                        '_id': mongojs.ObjectId(req.body._id)
+                    },
+                    update: {
+                        $set: {
+                            token: req.body.token
+                        }
+                    },
+                    new: true
+                }, function (err, doc) {
+                    if (err) {
+                        console.log("Something wrong when updating data!");
+                    } else {
+                        if (doc != null) {
+                            console.log("Token updated");
+                            console.log(doc);
+                            res.send("true");
+                        }
+                    }
+                });
+
+        }
+
+
+    });
+
+router
+
+    .post('/get-notification', function (req, res, next) {
+
+        console.log('get noti');
+        var CurrentDate = moment().unix();
+        console.log(CurrentDate);
+        var incoming_data = req.body;
+
+        db.notification_infos.find(
+
+            {
+                date: moment(new Date()).format("DD/MM/YYYY"),
+            }
+        ).sort({ datetime:1 }, function (err, user) {
+            if (err || !user) console.log("No  user found");
+            else {
+                console.log(user.length);
+                //             console.log(coupon[0].coupon_infos);
+
+                res.send(user);
+
+            }
+
+        });
+
+
+    });
+
+router
+
+    .post('/update-seen-status', function (req, res, next) {
+         
+         var incoming_data = req.body;
+
+        db.notification_infos.findAndModify({
+            query: {
+               user_cook_id: incoming_data.user_cook_id
+            },
+            update: {
+                $set: {
+                    seenstatus: '1',
+                },
+
+
+            },
+            new: true
+
+        }, function (err, data, lastErrorObject) {
+            if (err) {
+                res.status(400);
+                res.send('error');
+                throw err;
+
+            }
+
+            console.log(data);
+            res.status(200).send(data);
+        });
+
+
+    })
+
+// NOTIFICATION CODE
